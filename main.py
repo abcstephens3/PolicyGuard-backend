@@ -396,6 +396,28 @@ def get_analysis(doc_id: str, user: UserDB = Depends(get_current_user), db: Sess
 def _analysis_out(a):
     return AnalysisOut(id=a.id, document_id=a.document_id, analysis_json=a.analysis_json, created_at=a.created_at.isoformat())
 
+# ─── AI Proxy Endpoint ───
+import httpx
+
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+
+@app.post("/api/ai/proxy")
+async def ai_proxy(request_body: dict, user: UserDB = Depends(get_current_user)):
+    if not ANTHROPIC_API_KEY:
+        raise HTTPException(status_code=503, detail="AI service not configured")
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        response = await client.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "Content-Type": "application/json",
+                "x-api-key": ANTHROPIC_API_KEY,
+                "anthropic-version": "2023-06-01",
+            },
+            json=request_body,
+        )
+    return response.json()
+
+
 # ─── Health Check ───
 @app.get("/api/health")
 def health():
